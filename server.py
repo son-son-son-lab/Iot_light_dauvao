@@ -6,7 +6,7 @@ import math
 
 # CAU HINH HTTP SERVER
 
-HOST = "0.0.0.0"    #dia chi dung tam de kiem tra
+HOST = "192.168.1.7"    #dia chi dung tam de kiem tra
 PORT = 5000
 
 MAX_BODY_SIZE = 10000
@@ -77,4 +77,120 @@ class LightIoTHandler(BaseHTTPRequestHandler):      #tao lop nay dua tren baseHT
                 "error": "Request body too large"
             })
             return
+
+
+        body = self.rfile.read(length)
+        data = json.loads(body.decode("utf-8"))
+       
+        if not isinstance(data, dict):
+            self.send_json(400, {
+                "error": "JSON must be an object"
+            })
+            return
+
+        # Kiem tra device_id
+        device_id = data.get("device_id")
+
+        if not isinstance(device_id, str):
+            self.send_json(400, {
+                "error": "device_id must be a string"
+            })
+            return
+
+        # Kiem tra lux
+        lux = data.get("lux")
+
+        if isinstance(lux, bool) or not isinstance(lux, (int, float)):      #tra loi neu lux khong phai so
+            self.send_json(400, {
+                "error": "lux must be a number"
+            })
+            return
+
+        lux = float(lux)
+
+        if not math.isfinite(lux):                                  #tra loi neu lux vo cung
+            self.send_json(400, {
+                "error": "lux must be finite"   
+            })
+            return
+
+        if not MIN_LUX <= lux <= MAX_LUX:                           #tra loi neu lux vuot gia tri gioi han
+            self.send_json(400, {
+                "error": "lux is out of allowed range"
+            })
+            return
+
+        # Tao ban ghi voi thoi gian server nhan du lieu
+        record = {
+            "device_id": device_id,
+            "lux": lux,
+            "received_at": datetime.now(timezone.utc).isoformat()
+        }
+
+        # Hien thi ban ghi tren Terminal
+        print("\n NEW LIGHT READING ")
+        print(json.dumps(record, indent=2, ensure_ascii=False))
+        print("\n", flush=True)
+
+        # Tra ve HTTP 201
+        self.send_json(201, {
+            "status": "created",
+            "data": record
+        })
+
+    
+    # Ham tra ve JSON
+    def send_json(self, status_code, payload):
+        response_body = json.dumps(
+            payload,
+            ensure_ascii=False
+        ).encode("utf-8")
+
+        self.send_response(status_code)
+        self.send_header(
+            "Content-Type",
+            "application/json; charset=utf-8"
+        )
+        self.send_header(
+            "Content-Length",
+            str(len(response_body))
+        )
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+
+        self.wfile.write(response_body)
+
+
+    # Log yeu cau HTTP
+    def log_message(self, format_string, *args):
+        print(
+            "[HTTP] %s - %s" % (
+                self.address_string(),
+                format_string % args
+            ),
+            flush=True
+        )
+
+
+
+
+if __name__ == "__main__":
+    server = HTTPServer((HOST, PORT), LightIoTHandler)
+
+    print("\n")
+    print("Light IoT HTTP Server")
+    print(f"Address: http://{HOST}:{PORT}")
+    print(f"API:     http://{HOST}:{PORT}/api/readings")
+    print("Server running...")
+
+
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopping server...")
+    finally:
+        server.server_close()
+        print("Server stopped.")
+
+        
         
