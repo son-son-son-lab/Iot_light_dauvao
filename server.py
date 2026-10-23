@@ -3,10 +3,11 @@ from http.server import BaseHTTPRequestHandler, HTTPServer  #Nhap lop xu ly yeu 
 from datetime import datetime, timezone     #moc thoi gian  
 import json     
 import math
+from zoneinfo import ZoneInfo
 
 # CAU HINH HTTP SERVER
 
-HOST = "192.168.1.7"    #dia chi dung tam de kiem tra
+HOST = "10.136.57.18"    #dia chi dung tam de kiem tra
 PORT = 5000
 
 MAX_BODY_SIZE = 10000
@@ -79,26 +80,28 @@ class LightIoTHandler(BaseHTTPRequestHandler):      #tao lop nay dua tren baseHT
             return
 
 
-        body = self.rfile.read(length)
-        data = json.loads(body.decode("utf-8"))
-       
-        if not isinstance(data, dict):
+        body = self.rfile.read(length)                          #chuyen dau vao gui tu client tu dang bytes -> json
+        data = json.loads(body.decode("utf-8"))                 # -> python dict de python co the goi cac truong trong no
+
+        #data se la mot bien dict co cac truong gom device_id va lux                             
+
+        if not isinstance(data, dict):                          #neu data khong co dang dict thi bao loi
             self.send_json(400, {
                 "error": "JSON must be an object"
             })
             return
 
-        # Kiem tra device_id
+        # Kiem tra device_id                                    #goi truong device_id trong data
         device_id = data.get("device_id")
 
-        if not isinstance(device_id, str):
+        if not isinstance(device_id, str):                      #bao loi neu truong nay khong co dang xau ki tu
             self.send_json(400, {
                 "error": "device_id must be a string"
             })
             return
 
         # Kiem tra lux
-        lux = data.get("lux")
+        lux = data.get("lux")                                   #goi truong lux trong data
 
         if isinstance(lux, bool) or not isinstance(lux, (int, float)):      #tra loi neu lux khong phai so
             self.send_json(400, {
@@ -124,13 +127,14 @@ class LightIoTHandler(BaseHTTPRequestHandler):      #tao lop nay dua tren baseHT
         record = {
             "device_id": device_id,
             "lux": lux,
-            "received_at": datetime.now(timezone.utc).isoformat()
+            "received_at": datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).isoformat()  
         }
 
         # Hien thi ban ghi tren Terminal
         print("\n NEW LIGHT READING ")
-        print(json.dumps(record, indent=2, ensure_ascii=False))
-        print("\n", flush=True)
+        print(json.dumps(record))
+        print("\n")
+        print(data)
 
         # Tra ve HTTP 201
         self.send_json(201, {
@@ -140,38 +144,21 @@ class LightIoTHandler(BaseHTTPRequestHandler):      #tao lop nay dua tren baseHT
 
     
     # Ham tra ve JSON
-    def send_json(self, status_code, payload):
-        response_body = json.dumps(
-            payload,
-            ensure_ascii=False
-        ).encode("utf-8")
+    def send_json(self, status_code, payload):                  
+        response_body = json.dumps(payload).encode("utf-8")     #luu payload cua du lieu tra ve vao ham(dict->json->bytes)
 
-        self.send_response(status_code)
-        self.send_header(
+        self.send_response(status_code)                         #gui di status code
+        self.send_header(                                       #gui di content-type header
             "Content-Type",
             "application/json; charset=utf-8"
         )
-        self.send_header(
+        self.send_header(                                       #gui di content length head
             "Content-Length",
             str(len(response_body))
         )
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
+        self.end_headers()                                      #ket thuc header
 
-        self.wfile.write(response_body)
-
-
-    # Log yeu cau HTTP
-    def log_message(self, format_string, *args):
-        print(
-            "[HTTP] %s - %s" % (
-                self.address_string(),
-                format_string % args
-            ),
-            flush=True
-        )
-
-
+        self.wfile.write(response_body)                         #in ra man hinh
 
 
 if __name__ == "__main__":
