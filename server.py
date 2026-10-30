@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 # CAU HINH HTTP SERVER
 
 HOST = "192.168.1.7"    
-PORT = 5000
+PORT = 8000
 
 MAX_BODY_SIZE = 10000
 MIN_LUX = 0
