@@ -1,0 +1,15 @@
+idf_component_register(
+    SRCS
+        "main.c"
+        "wifi_sta.c"
+        "i2c_bus.c"
+        "bh1750.c"
+    INCLUDE_DIRS
+        "."
+    PRIV_REQUIRES
+        nvs_flash
+        esp_wifi
+        esp_event
+        esp_netif
+        esp_driver_i2c
+)
